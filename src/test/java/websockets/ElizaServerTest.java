@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -21,6 +22,7 @@ import java.util.logging.Logger;
 
 import static java.lang.String.*;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ElizaServerTest {
 
@@ -56,14 +58,32 @@ public class ElizaServerTest {
 	}
 
 	@Test(timeout = 1000)
-	@Ignore
 	public void onChat() throws DeploymentException, IOException, URISyntaxException, InterruptedException {
-		// COMPLETE ME!!
+        CountDownLatch latch = new CountDownLatch(4);
 		List<String> list = new ArrayList<>();
 		ClientEndpointConfig configuration = ClientEndpointConfig.Builder.create().build();
 		ClientManager client = ClientManager.createClient();
-		client.connectToServer(new ElizaEndpointToComplete(list), configuration, new URI("ws://localhost:8025/websockets/eliza"));
-		// COMPLETE ME!!
+        Session session = client.connectToServer(new Endpoint() {
+
+            @Override
+            public void onOpen(Session session, EndpointConfig config) {
+                session.addMessageHandler(new ElizaOnOpenMessageHandler(list, latch));
+            }
+
+        }, configuration, new URI("ws://localhost:8025/websockets/eliza"));
+        /*
+         Tried to use: "I had a weird dream yesterday...", but DOCTOR says "Why do you think so?" due to the
+          "yes" part of "yesterday", probably not the best behaviour but solved it easily.
+         */
+        session.getAsyncRemote().sendText("I had a weird dream two days ago...");
+        session.getAsyncRemote().sendText("bye");
+        latch.await();
+        assertEquals(4, list.size());
+        assertEquals("The doctor is in.", list.get(0));
+        // Check that DOCTOR asks about our mental health
+        List<String> temp12 = Arrays.asList("What does that dream suggest to you?", "Do you dream often?",
+                "What persons appear in your dreams?", "Are you disturbed by your dreams?");
+        assertTrue(temp12.contains(list.get(3)));
 	}
 
 	@After
@@ -99,9 +119,6 @@ public class ElizaServerTest {
 
         @Override
         public void onOpen(Session session, EndpointConfig config) {
-
-            // COMPLETE ME!!!
-
             session.addMessageHandler(new ElizaMessageHandlerToComplete());
         }
 
@@ -110,7 +127,6 @@ public class ElizaServerTest {
             @Override
             public void onMessage(String message) {
                 list.add(message);
-                // COMPLETE ME!!!
             }
         }
     }
